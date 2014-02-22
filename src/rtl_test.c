@@ -76,7 +76,7 @@ void usage(void)
 		"Usage:\n"
 		"\t[-s samplerate (default: 2048000 Hz)]\n"
 		"\t[-d device_index (default: 0)]\n"
-		"\t[-t enable Elonics E4000 tuner benchmark]\n"
+		"\t[-t enable Elonics E4000/Rafael R820T tuner benchmark]\n"
 #ifndef _WIN32
 		"\t[-p[seconds] enable PPM error measurement (default: 10 seconds)]\n"
 #endif
@@ -221,6 +221,34 @@ static void rtlsdr_callback(unsigned char *buf, uint32_t len, void *ctx)
 #endif
 }
 
+void r820t_benchmark(void)
+{
+    uint32_t freq;
+    uint32_t range_start = 0, range_end = 0;
+
+    fprintf(stderr, "Benchmarking R820T PLL...\n");
+
+    /* find tuner range start */
+    for (freq = MHZ(30); freq > MHZ(1); freq -= MHZ(1)) {
+        if (rtlsdr_set_center_freq(dev, freq) < 0) {
+            range_start = freq;
+            fprintf(stderr, "range_start=%d\n",range_start);
+            break;
+        }
+    }
+
+    /* find tuner range end */
+    for (freq = MHZ(1750); freq < MHZ(1950UL); freq += MHZ(1)) {
+        if (rtlsdr_set_center_freq(dev, freq) < 0) {
+            range_end = freq;
+            break;
+        }
+    }
+
+    fprintf(stderr, "R820T range: %i to %i MHz\n",
+        range_start/MHZ(1) + 1, range_end/MHZ(1) - 1);
+}
+
 void e4k_benchmark(void)
 {
 	uint32_t freq, gap_start = 0, gap_end = 0;
@@ -362,8 +390,10 @@ int main(int argc, char **argv)
 	if (test_mode == TUNER_BENCHMARK) {
 		if (rtlsdr_get_tuner_type(dev) == RTLSDR_TUNER_E4000)
 			e4k_benchmark();
+		else if ((rtlsdr_get_tuner_type(dev) == RTLSDR_TUNER_R820T) || (rtlsdr_get_tuner_type(dev) == RTLSDR_TUNER_R828D))
+			r820t_benchmark();
 		else
-			fprintf(stderr, "No E4000 tuner found, aborting.\n");
+			fprintf(stderr, "No E4000 or R820T tuner found, aborting.\n");
 
 		goto exit;
 	}

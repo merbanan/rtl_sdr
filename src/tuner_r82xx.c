@@ -421,7 +421,7 @@ static int r82xx_set_pll(struct r82xx_priv *priv, uint32_t freq)
 	uint64_t vco_freq;
 	uint32_t vco_fra;	/* VCO contribution by SDM (kHz) */
 	uint32_t vco_min = 1770000;
-	uint32_t vco_max = vco_min * 2;
+	uint32_t vco_max = 3800000;
 	uint32_t freq_khz, pll_ref, pll_ref_khz;
 	uint16_t n_sdm = 2;
 	uint16_t sdm = 0;
@@ -488,7 +488,7 @@ static int r82xx_set_pll(struct r82xx_priv *priv, uint32_t freq)
 	nint = vco_freq / (2 * pll_ref);
 	vco_fra = (vco_freq - 2 * pll_ref * nint) / 1000;
 
-	if (nint > ((128 / vco_power_ref) - 1)) {
+	if (nint > ((128 / vco_power_ref) + 1)) {
 		fprintf(stderr, "[R82XX] No valid PLL values for %u Hz!\n", freq);
 		return -1;
 	}
@@ -520,6 +520,8 @@ static int r82xx_set_pll(struct r82xx_priv *priv, uint32_t freq)
 		}
 		n_sdm <<= 1;
 	}
+	
+	// fprintf(stderr, "LO: %u kHz, MixDiv: %u, PLLDiv: %u, VCO %u kHz, SDM: %u \n", (uint32_t)(freq/1000), mix_div, nint,  (uint32_t)(vco_freq/1000), sdm);
 
 	rc = r82xx_write_reg(priv, 0x16, sdm >> 8);
 	if (rc < 0)
@@ -549,7 +551,7 @@ static int r82xx_set_pll(struct r82xx_priv *priv, uint32_t freq)
 	if (!(data[2] & 0x40)) {
 		fprintf(stderr, "[R82XX] PLL not locked!\n");
 		priv->has_lock = 0;
-		return 0;
+		return -1;
 	}
 
 	priv->has_lock = 1;
